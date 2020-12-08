@@ -200,17 +200,45 @@ static void set_helligkeit(uint8_t &rr, uint8_t &gg, uint8_t &bb, uint8_t &ww, u
 
 //------------------------------------------------------------------------------
 
-static void led_set(const uint8_t array[]) {
-    uint8_t rr, gg, bb, ww;
-    set_helligkeit_ldr(rr, gg, bb, ww, Foreground);
-    uint8_t i = 0;
-    while (i < usedUhrType->NUM_PIXELS()){
+static void transition_helligkeit(uint8_t position, uint8 percentage)
+{
+	for (uint8_t i = 0; i<4; i++)
+	{
+		G.rgb[position][i] = G.rgb[position][i] * percentage / 100;
+	}
+}
 
-        if (array[i] != 255) {
-            led_set_pixel(rr, gg, bb, ww, array[i]);
-        }
-        i++;
-    }
+//------------------------------------------------------------------------------
+
+static void led_set(const uint8_t new_array[], const uint8_t old_array[]) {
+	uint8_t rr, gg, bb, ww;
+	set_helligkeit_ldr(rr, gg, bb, ww, Foreground);
+	bool use_new_array = false;
+	uint8_t ii = 0;
+	while (ii < sizeof(transition_array)/sizeof(transition_array[0])){
+		transition_helligkeit(Foreground, transition_array[ii]);
+		if (transition_array[ii] = 0) {use_new_array = true;}
+		uint8_t i = 0;
+		while (i < usedUhrType->NUM_PIXELS()){
+			if (old_array[i] != 255 && use_new_array == false) {
+				led_set_pixel(rr, gg, bb, ww, old_array[i]);
+			}
+			else if(new_array[i] != 255 && use_new_array == true){
+				led_set_pixel(rr, gg, bb, ww, new_array[i]);
+			}
+			i++;
+		}
+		delay(tansition_time);
+		ii++;
+	}
+}
+
+//------------------------------------------------------------------------------
+
+static void copy_array(const uint8_t source[], uint8_t destination[]) {
+	for (uint8_t i = 0; i < sizeof(source)/sizeof(source[0]); i++){
+		destination[i] = source[i];
+	}
 }
 
 //------------------------------------------------------------------------------
@@ -1015,7 +1043,9 @@ static void show_zeit(uint8_t flag) {
     show_wetter();
     }
 
-    led_set(Word_array);
+    led_set(Word_array, Word_array_old);
+
+	copy_array(Word_array, Word_array_old);
 
     led_show();
 }
