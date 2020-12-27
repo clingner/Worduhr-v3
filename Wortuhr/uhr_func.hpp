@@ -225,8 +225,6 @@ static inline void led_clear_pixel(uint16_t i) {
 void led_clear() {
     for (uint16_t i = 0; i < usedUhrType->NUM_PIXELS(); i++) {
         Word_array[i] = 255;
-    }
-    for (uint16_t i = 0; i < usedUhrType->NUM_PIXELS(); i++) {
         led_clear_pixel(i);
     }
 }
@@ -251,42 +249,41 @@ static inline void rahmen_clear() {
 
 static void transition_helligkeit(uint8_t &rr, uint8_t &gg, uint8_t &bb, uint8_t &ww, uint8 percentage)
 {
-	rr = rr * percentage/100;
-	gg = rr * percentage/100;
-	bb = rr * percentage/100;
-	ww = rr * percentage/100;
+    rr = G.rgb[Foreground][0] * percentage/100;
+    gg = G.rgb[Foreground][1] * percentage/100;
+    bb = G.rgb[Foreground][2] * percentage/100;
+    ww = G.rgb[Foreground][3] * percentage/100;
 }
 
 //------------------------------------------------------------------------------
 
-static void led_set(const uint8_t new_array[], const uint8_t old_array[]) {
+static void led_set() {
 	uint8_t rr, gg, bb, ww;
-	set_helligkeit_ldr(rr,gg,bb,ww,Foreground);
 	bool use_new_array = false;
-	uint8_t ii = 0;
-	while (ii < sizeof(transition_array)/sizeof(transition_array[0])){
+	for (uint8_t ii = 0; ii < 20; ii++){
 		transition_helligkeit(rr, gg, bb, ww, transition_array[ii]);
 		if (transition_array[ii] == 0) {
 			use_new_array = true;
-			led_clear();
+            for (uint8_t i = 0; i < usedUhrType->NUM_PIXELS(); i++) {
+                led_clear_pixel(i);
+            }
 		}
 		else
 		{
 			for (uint8_t i = 0; i < usedUhrType->NUM_PIXELS(); i++)
 			{
-				if (Word_array_old[i] != 255 && use_new_array == false)
+				if (Word_array_transition_old2zero[i] != 255 && use_new_array == false)
 				{
-					led_set_pixel(rr, gg, bb, ww, Word_array_old[i]);
+					led_set_pixel(rr, gg, bb, ww, Word_array_transition_old2zero[i]);
 				}
-				else if (Word_array[i] != 255 && use_new_array == true)
+				else if (Word_array_transition_zero2new[i] != 255 && use_new_array == true)
 				{
-					led_set_pixel(rr, gg, bb, ww, Word_array[i]);
+					led_set_pixel(rr, gg, bb, ww, Word_array_transition_zero2new[i]);
 				}
 			}
 		}
 		led_show();
 		delay(tansition_time);
-		ii++;
 	}
 }
 
@@ -300,13 +297,20 @@ static void copy_array(const uint8_t source[], uint8_t destination[]) {
 
 //------------------------------------------------------------------------------
 
-static bool changes_in_array(const uint8_t source[], uint8_t destination[]) {
+static bool changes_in_array() {
+    bool return_value = false;
 	for (uint16_t i = 0; i < usedUhrType->NUM_PIXELS(); i++){
-		if (destination[i] != source[i]){
-			return true;
+		if (Word_array[i] != Word_array_old[i]){
+		    if(Word_array_old[i] == 255){
+                Word_array_transition_zero2new[i] = i;
+		    }
+		    else if (Word_array[i] == 255){
+                Word_array_transition_old2zero[i] = i;
+		    }
+            return_value = true;
 		}
 	}
-	return false;
+	return return_value;
 }
 
 //------------------------------------------------------------------------------
@@ -1063,9 +1067,8 @@ static void show_zeit(uint8_t flag) {
     show_wetter();
     }
 
-	if (changes_in_array(Word_array, Word_array_old) == true){
-		led_set(Word_array, Word_array_old);
-
+    if (changes_in_array() == true){
+		led_set();
 		copy_array(Word_array, Word_array_old);
 	}
 }
